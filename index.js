@@ -89,7 +89,7 @@ const startBot = async () => {
                     }
                 });
             } else {
-                sock.sendMessage(id, {
+                sock.sendMessage(from, {
                     text: 'No players online.',
                     contextInfo: {
                         externalAdReply: {
@@ -133,7 +133,7 @@ let txt = `
 📊 *server status* 📊
 *server:* 🔴 offline
 `
-sock.sendMessage(id,  {
+sock.sendMessage(from,  {
     text: txt,
       contextInfo: {
                 externalAdReply: {
