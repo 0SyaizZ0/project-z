@@ -8,8 +8,6 @@ const path = require('path');
 
 const app = express();
 
-// Konfigurasi bot WhatsApp
-let sock;
 const startBot = async () => {
     const { state, saveCreds } = await useMultiFileAuthState(path.resolve(__dirname, 'session'));
     sock = makeWASocket({
@@ -63,11 +61,35 @@ const startBot = async () => {
                           .join('\n')
                     : 'No players online.';
 
-                await sock.sendMessage(from, {
-                    text: `Players online:\n${playerList}`,
-                });
+               
+sock.sendMessage(from,  {
+    text: txt,
+      contextInfo: {
+                externalAdReply: {
+title: 'status server',
+body: 'project-z',
+thumbnailUrl: 'https://telegra.ph/file/8e62f86c2cbed714f27c4.jpg',
+mediaType: 1,
+renderLargerThumbnail: true,
+showAdAttribution: true
+}}}, {})
             } catch (e) {
-                await sock.sendMessage(from, { text: 'Failed to retrieve player list.' });
+               
+let txt = `
+📊 *server status* 📊
+*server:* 🔴 offline
+`
+sock.sendMessage(id,  {
+    text: txt,
+      contextInfo: {
+                externalAdReply: {
+title: 'status server',
+body: 'project-z',
+thumbnailUrl: 'https://telegra.ph/file/8e62f86c2cbed714f27c4.jpg',
+mediaType: 1,
+renderLargerThumbnail: true,
+showAdAttribution: true
+}}}, {})
             }
         }
 
@@ -80,9 +102,34 @@ const startBot = async () => {
 
                 const txt = `📊 *server status* 📊\n\n*server:* 🟢 online\n*version:* ${response.version.name}\n*players:* ${response.players.online}/${response.players.max}\n*latency:* ${response.roundTripLatency} ms`;
 
-                await sock.sendMessage(from, { text: txt });
+sock.sendMessage(from,  {
+    text: txt,
+      contextInfo: {
+                externalAdReply: {
+title: 'status server',
+body: 'project-z',
+thumbnailUrl: 'https://telegra.ph/file/8e62f86c2cbed714f27c4.jpg',
+mediaType: 1,
+renderLargerThumbnail: true,
+showAdAttribution: true
+}}}, {})
             } catch (e) {
-                await sock.sendMessage(from, { text: 'Server is offline.' });
+            
+let txt = `
+📊 *server status* 📊
+*server:* 🔴 offline
+`
+sock.sendMessage(from,  {
+    text: txt,
+      contextInfo: {
+                externalAdReply: {
+title: 'status server',
+body: 'project-z',
+thumbnailUrl: 'https://telegra.ph/file/8e62f86c2cbed714f27c4.jpg',
+mediaType: 1,
+renderLargerThumbnail: true,
+showAdAttribution: true
+}}}, {})
             }
         }
     });
