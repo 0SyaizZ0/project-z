@@ -4,43 +4,34 @@ const fs = require('fs');
 const { Rcon } = require('rcon-client');
 const { status } = require('minecraft-server-util');
 const express = require('express');
+const path = require('path');
+
 const app = express();
+
+// Konfigurasi bot WhatsApp
+let sock;
 const startBot = async () => {
- 
-
-    app.get('/', (req, res) => {
-      res.send('Bot is running!');
-    });
-
-    const PORT = process.env.PORT || 8080;
-    app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
-
-    // Gunakan auth state berbasis file
-    const { state, saveCreds } = await useMultiFileAuthState('session');
-    const sock = makeWASocket({
+    const { state, saveCreds } = await useMultiFileAuthState(path.resolve(__dirname, 'session'));
+    sock = makeWASocket({
         auth: state,
         printQRInTerminal: true,
     });
 
-    // Menampilkan QR Code di terminal
+    // Event handler
     sock.ev.on('connection.update', (update) => {
         const { connection, qr } = update;
         if (qr) {
-            qrcode.generate(qr, { small: false });
+            console.log('QR Code untuk login:');
+            qrcode.generate(qr, { small: true });
         }
-
         if (connection === 'close') {
             console.log('Connection closed. Reconnecting...');
             startBot();
-        } else if (connection === 'open') {
-            console.log('Connection opened.');
         }
     });
 
-    // Menyimpan sesi saat terjadi perubahan
     sock.ev.on('creds.update', saveCreds);
 
-    // Respon otomatis saat menerima pesan
     sock.ev.on('messages.upsert', async (message) => {
         const msg = message.messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -50,103 +41,63 @@ const startBot = async () => {
 
         console.log(`Pesan dari ${from}: ${text}`);
 
-        // Balasan otomatis
         if (text.toLowerCase() === 'halo') {
             await sock.sendMessage(from, { text: 'Hai, ada yang bisa saya bantu?' });
         }
 
         if (text.toLowerCase() === '/player') {
-            async function connectRcon() {
+            try {
                 const rcon = new Rcon({
                     host: 'hcr-1.heppyhost.my.id',
-                    port: 25716,   
-                    password: 'syaizz23@@@@@@@@' 
+                    port: 25716,
+                    password: 'syaizz23@@@@@@@@',
                 });
                 await rcon.connect();
-                return rcon;
-            }
+                const response = await rcon.send('list');
 
-            const rcon = await connectRcon();
-            const response = await rcon.send('list');
+                const players = response.match(/:\s*(.*)/);
+                const playerList = players && players[1]
+                    ? players[1]
+                          .split(',')
+                          .map((name, index) => `${index + 1}. ${name.trim()}`)
+                          .join('\n')
+                    : 'No players online.';
 
-            // Ekstrak nama pemain dari hasil response
-            const players = response.match(/:\s*(.*)/);
-            if (players && players[1]) {
-                const playerList = players[1].split(',').map((name, index) => `${index + 1}. ${name.trim()}`).join('\n');
-
-                const statusMessage = `players online:\n${playerList}`;
-
-                sock.sendMessage(from, {
-                    text: statusMessage,
-                    contextInfo: {
-                        externalAdReply: {
-                            title: 'Player Online',
-                            body: 'Project-Z',
-                            thumbnailUrl: 'https://telegra.ph/file/8e62f86c2cbed714f27c4.jpg',
-                            mediaType: 1,
-                            showAdAttribution: true
-                        }
-                    }
+                await sock.sendMessage(from, {
+                    text: `Players online:\n${playerList}`,
                 });
-            } else {
-                sock.sendMessage(from, {
-                    text: 'No players online.',
-                    contextInfo: {
-                        externalAdReply: {
-                            title: 'Player Online',
-                            body: 'Project-Z',
-                            thumbnailUrl: 'https://telegra.ph/file/8e62f86c2cbed714f27c4.jpg',
-                            mediaType: 1,
-                            showAdAttribution: true
-                        }
-                    }
-                });
+            } catch (e) {
+                await sock.sendMessage(from, { text: 'Failed to retrieve player list.' });
             }
         }
+
         if (text.toLowerCase() === '/status') {
+            const serverIP = 'hcr-1.heppyhost.my.id';
+            const serverPort = 25662;
 
+            try {
+                const response = await status(serverIP, serverPort, { timeout: 5000 });
 
-const serverIP = 'hcr-1.heppyhost.my.id';
-const serverPort = 25662; 
-try {
-const response = await status(serverIP, serverPort, { timeout: 5000 });
+                const txt = `📊 *server status* 📊\n\n*server:* 🟢 online\n*version:* ${response.version.name}\n*players:* ${response.players.online}/${response.players.max}\n*latency:* ${response.roundTripLatency} ms`;
 
-let txt = `📊 *server status* 📊
-
-*server:* 🟢 online
-*version:* ${response.version.name}
-*players:* ${response.players.online}/${response.players.max}
-*latency:* ${response.roundTripLatency} ms`
-sock.sendMessage(from,  {
-    text: txt,
-      contextInfo: {
-                externalAdReply: {
-title: 'status server',
-body: 'project-z',
-thumbnailUrl: 'https://telegra.ph/file/8e62f86c2cbed714f27c4.jpg',
-mediaType: 2,
-showAdAttribution: false
-}}}, {})
-} catch(e) {
-
-let txt = `
-📊 *server status* 📊
-*server:* 🔴 offline
-`
-sock.sendMessage(from,  {
-    text: txt,
-      contextInfo: {
-                externalAdReply: {
-title: 'status server',
-body: 'project-z',
-thumbnailUrl: 'https://telegra.ph/file/8e62f86c2cbed714f27c4.jpg',
-mediaType: 1,
-renderLargerThumbnail: true,
-showAdAttribution: true
-}}}, {})
-}
+                await sock.sendMessage(from, { text: txt });
+            } catch (e) {
+                await sock.sendMessage(from, { text: 'Server is offline.' });
+            }
         }
     });
 };
 
+// Mulai bot
 startBot();
+
+// Endpoint utama untuk memastikan Vercel tetap aktif
+app.get('/', (req, res) => {
+    res.send('Bot WhatsApp is running.');
+});
+
+// Jalankan server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+
+module.exports = app;
